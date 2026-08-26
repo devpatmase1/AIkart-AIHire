@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: aikart-aihire
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 server:app
+    envVars:
+      - key: DEFAULT_MODEL
+        value: gemini-2.0-flash
+      - key: PYTHON_VERSION
+        value: 3.11.0
