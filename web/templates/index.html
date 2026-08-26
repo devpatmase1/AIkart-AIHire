@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiKart — Resume Shortlisting & Candidate Screener</title>
+  <link rel="icon" type="image/png" href="/static/logo-icon.png" />
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="top-nav glass-card">
+      <div class="brand">
+        <img src="/static/logo-full.png" alt="aiKart Logo" class="brand-logo-img" />
+        <div class="brand-text">
+          <h1 class="animated-gradient">Resume Shortlisting Engine</h1>
+          <p>Autonomous AI Candidate Screener & JD Skill Matching System</p>
+        </div>
+      </div>
+      <div class="nav-controls">
+        <div class="model-badge">
+          <span class="status-dot"></span>
+          <span id="activeModelLabel">Engine: Gemini 2.0 Flash</span>
+        </div>
+        <a href="/api/download-csv" class="btn btn-secondary btn-sm" id="downloadCsvBtn">
+          📥 Export Shortlist CSV
+        </a>
+      </div>
+    </header>
+
+    <!-- Screening Workflow Form -->
+    <section class="card upload-card mb-24 glass-card">
+      <form id="shortlistForm" class="form-grid">
+        <!-- Step 1: Job Description -->
+        <div class="form-group">
+          <div class="flex-between mb-8">
+            <label for="jdInput">1. Paste Your Job Description (JD)</label>
+            <button type="button" class="btn-link" id="loadSampleJdBtn">⚡ Load Sample JD</button>
+          </div>
+          <textarea id="jdInput" rows="4" placeholder="Paste the Job Description requirements (tech stack, experience level, core competencies)..." class="form-control text-area" required></textarea>
+        </div>
+
+        <!-- Step 2: Multiple Resume File Upload -->
+        <div class="form-group">
+          <label>2. Upload Multiple Resume PDFs</label>
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept=".pdf" multiple class="file-input" />
+            <div class="dropzone-content">
+              <div class="dropzone-icon">📄</div>
+              <div class="dropzone-text">
+                <strong>Click or drag & drop candidate PDF resumes here</strong>
+                <span>Supports batch screening (Select 1 to 20+ PDF resumes simultaneously)</span>
+              </div>
+              <div class="selected-file-badge" id="selectedFileBadge" style="display: none;">
+                📄 <span id="selectedFileCount">0 files selected</span>
+                <button type="button" class="btn-clear" id="clearFileBtn">✕ Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">
+          <span>✨ Screen & Rank Candidate Resumes</span>
+        </button>
+      </form>
+
+      <!-- Live Batch Progress Indicator -->
+      <div class="pipeline-status" id="pipelineStatus" style="display: none;">
+        <div class="spinner"></div>
+        <div class="pipeline-info">
+          <h4 id="pipelineStepTitle">Evaluating Resumes...</h4>
+          <p id="pipelineStepSub">Matching candidate skills against your custom Job Description criteria</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Shortlisted Candidates Leaderboard Table -->
+    <section class="card leaderboard-card glass-card">
+      <div class="card-header flex-between">
+        <div>
+          <h2>🏆 Candidate Shortlist Leaderboard</h2>
+          <p>Ranked candidate applicants matched against your Job Description</p>
+        </div>
+        <div class="table-actions">
+          <input type="text" id="searchInput" placeholder="Search candidate..." class="form-control search-input" />
+          <select id="sortSelect" class="form-control filter-select">
+            <option value="score">Sort by Match Score</option>
+            <option value="skills">Sort by Skills Matched</option>
+          </select>
+          <select id="filterStatusSelect" class="form-control filter-select">
+            <option value="ALL">All Candidates</option>
+            <option value="Shortlisted">Shortlisted Only</option>
+            <option value="Filtered Out">Filtered Out Only</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" id="clearShortlistBtn">🗑️ Clear</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Candidate</th>
+              <th>JD Match Score</th>
+              <th>Matched Skills</th>
+              <th>Shortlist Status</th>
+              <th>Executive Summary</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="candidateTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">No candidates shortlisted yet. Paste a JD and upload candidate resumes above to begin.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>aiKart Hiring Agent • Vibe Trading with Your Professional Agent Team</p>
+    </footer>
+  </div>
+
+  <!-- Candidate Details Modal / Drawer -->
+  <div class="modal-overlay" id="candidateModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="modalCandidateName">Candidate Name</h2>
+          <p id="modalCandidateSub">Email • Resume File</p>
+        </div>
+        <button class="modal-close" id="closeModalBtn">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Score Banner -->
+        <div class="modal-score-banner">
+          <div class="score-dial">
+            <div class="score-num" id="modalScoreNum">0%</div>
+          </div>
+          <div class="score-banner-info">
+            <span class="status-tag shortlisted" id="modalStatusPill">Shortlisted</span>
+            <h3 style="margin-top: 6px;">JD Skill Match Assessment</h3>
+            <p id="modalSummaryReason">Reason summary</p>
+          </div>
+        </div>
+
+        <!-- Strengths & Missing Skills -->
+        <div class="two-col-grid">
+          <div class="info-block block-strengths">
+            <h4>✅ Matched Skills & Qualifications</h4>
+            <ul id="modalMatchingSkillsList"></ul>
+          </div>
+          <div class="info-block block-improvements">
+            <h4>⚠️ Requirements / Missing Skills</h4>
+            <ul id="modalMissingSkillsList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript App Logic -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
